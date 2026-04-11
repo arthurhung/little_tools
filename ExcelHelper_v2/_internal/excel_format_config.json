@@ -1,0 +1,49 @@
+{
+  "target_headers": [
+    "上線風險CAB標準",
+    "實際風險",
+    "CAB2風險",
+    "業務風險",
+    "業務風險評估",
+    "HRI風險評估"
+  ],
+  "header_row": {
+    "index": 1,
+    "height": 15,
+    "long_text_length_threshold": 5,
+    "long_text_font_size": 6
+  },
+  "column_width_rules": [
+    {
+      "header_keywords": [
+        "預定上線日／上線時間",
+        "bug fix/需求調整"
+      ],
+      "width": 12
+    },
+    {
+      "header_keywords": [
+        "上線風險（CAB 標準）",
+        "相關聯繫單號",
+        "MMB",
+        "一同上線或相關聯事項（Y/N）",
+        "異常通報(Y/N)",
+        "公告(Y/N)"
+      ],
+      "width": 3
+    },
+    {
+      "header_keywords": [
+        "系統",
+        "電聯單號",
+        "電聯單",
+        "聯繫單號"
+      ],
+      "width": 7
+    },
+    {
+      "include_target_headers": true,
+      "width": 3
+    }
+  ]
+}
