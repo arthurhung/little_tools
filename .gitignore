@@ -14,6 +14,8 @@ desktop.ini
 .env
 .env.*
 !.env.example
+**/tokens/*.json
+!**/tokens/.gitkeep
 
 # Logs
 *.log

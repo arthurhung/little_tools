@@ -225,9 +225,9 @@ class GraphClient:
         query = urllib.parse.urlencode(
             {
                 "$top": "100",
-                "$filter": f"receivedDateTime ge {start_utc} and receivedDateTime lt {end_utc}",
+                "$filter": f"receivedDateTime ge {start_utc} and receivedDateTime lt {end_utc} and isDraft eq false",
                 "$orderby": "receivedDateTime desc",
-                "$select": "id,subject,from,receivedDateTime,isRead,bodyPreview,parentFolderId",
+                "$select": "id,subject,from,receivedDateTime,isRead,isDraft,bodyPreview,parentFolderId",
             }
         )
         data = self.request(f"{base}?{query}")
@@ -299,7 +299,7 @@ class DailyDraftService:
 
     def build(self, folder: str, body_override: str | None = None, dry_run: bool = False) -> DailyDraftResult:
         messages = self.graph.today_messages(folder)
-        first = self._find_latest(messages, self.config.first_contains)
+        first = self._find_latest(messages, self.config.first_contains, require_reply_all=True)
         second = self._find_latest(messages, self.config.second_contains)
         extracted_time = self._extract_time(second.get("subject") or "")
         comment = self._render_body(extracted_time, body_override)
@@ -313,16 +313,38 @@ class DailyDraftService:
         )
         if dry_run:
             return result
-        draft = self.graph.create_reply_all_draft(first["id"], comment)
+        if not self._can_create_reply_all(first):
+            raise RuntimeError(self._reply_all_error(first))
+        try:
+            draft = self.graph.create_reply_all_draft(first["id"], comment)
+        except RuntimeError as exc:
+            raise RuntimeError(f"{self._reply_all_error(first)} Original error: {exc}") from exc
         self.graph.update_subject(draft["id"], draft_subject)
         result.draft_id = draft.get("id")
         return result
 
-    def _find_latest(self, messages: list[dict], contains: str) -> dict:
+    def _find_latest(self, messages: list[dict], contains: str, require_reply_all: bool = False) -> dict:
         matches = [item for item in messages if contains in (item.get("subject") or "")]
+        if require_reply_all:
+            matches = [item for item in matches if self._can_create_reply_all(item)]
         if not matches:
             raise RuntimeError(f"今天找不到主旨包含「{contains}」的信件。")
         return sorted(matches, key=lambda item: item.get("receivedDateTime") or "", reverse=True)[0]
+
+    @staticmethod
+    def _can_create_reply_all(message: dict) -> bool:
+        return bool(message.get("id")) and not message.get("isDraft") and bool(message.get("receivedDateTime"))
+
+    @staticmethod
+    def _reply_all_error(message: dict) -> str:
+        subject = message.get("subject") or "(no subject)"
+        message_id = message.get("id") or "(no id)"
+        received = message.get("receivedDateTime") or "(no receivedDateTime)"
+        is_draft = message.get("isDraft")
+        return (
+            "Cannot create ReplyAll draft for the selected Outlook item. "
+            f"subject={subject!r}, id={message_id}, receivedDateTime={received}, isDraft={is_draft}."
+        )
 
     def _extract_time(self, subject: str) -> str:
         match = re.search(self.config.time_pattern, subject)
