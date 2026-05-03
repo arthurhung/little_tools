@@ -10,6 +10,8 @@ import re
 import secrets
 import sys
 import time
+from typing import Any, cast
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -106,21 +108,20 @@ class OAuthCallbackServer(http.server.HTTPServer):
 
 
 class OAuthCallbackHandler(http.server.BaseHTTPRequestHandler):
-    server: OAuthCallbackServer
-
-    def log_message(self, format: str, *args) -> None:
+    def log_message(self, format: str, *args: Any) -> None:
         return
 
     def do_GET(self) -> None:
+        callback_server = cast(OAuthCallbackServer, self.server)
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
         if parsed.path != REDIRECT_PATH:
             self.send_response(404)
             self.end_headers()
             return
-        self.server.auth_code = params.get("code", [""])[0]
-        self.server.auth_error = params.get("error_description", params.get("error", [""]))[0]
-        self.server.returned_state = params.get("state", [""])[0]
+        callback_server.auth_code = params.get("code", [""])[0]
+        callback_server.auth_error = params.get("error_description", params.get("error", [""]))[0]
+        callback_server.returned_state = params.get("state", [""])[0]
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
