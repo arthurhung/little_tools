@@ -1,0 +1,24 @@
+{
+  "firstMessage": {
+    "subjectContains": "(已完成)",
+    "pick": "latest"
+  },
+  "secondMessage": {
+    "subjectContains": "ETL_TW",
+    "pick": "latest"
+  },
+  "timeExtraction": {
+    "source": "secondMessage.subject",
+    "pattern": "\\d{4}/\\d{2}/\\d{2}_(\\d{2}:\\d{2}:\\d{2}).*?ETL_TW"
+  },
+  "draft": {
+    "replyAll": true,
+    "send": false,
+    "replyPrefix": "RE: ",
+    "bodyTemplate": "{time}",
+    "subjectRewrite": {
+      "pattern": "(批次).*",
+      "replacement": "\\g<1>-網銀完成"
+    }
+  }
+}
