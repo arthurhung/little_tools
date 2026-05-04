@@ -130,9 +130,10 @@ class DailyDraftService:
         html_body = getattr(draft, "HTMLBody", "") or ""
         if html_body:
             draft.BodyFormat = OL_FORMAT_HTML
-            draft.HTMLBody = self._body_as_html(preview.body)
+            draft.HTMLBody = self._reply_with_original_html(source_mail, preview.body)
         else:
-            draft.Body = preview.body
+            original_body = getattr(source_mail, "Body", "") or ""
+            draft.Body = f"{preview.body}\r\n\r\n{original_body}"
         draft.Save()
         if display:
             draft.Display()
@@ -141,6 +142,25 @@ class DailyDraftService:
     @staticmethod
     def _body_as_html(body: str) -> str:
         return "<br>".join(html.escape(line) for line in body.splitlines())
+
+    @classmethod
+    def _reply_with_original_html(cls, source_mail, body: str) -> str:
+        original_html = getattr(source_mail, "HTMLBody", "") or ""
+        original_body = cls._extract_html_body(original_html).strip()
+        if not original_body:
+            original_body = cls._body_as_html(getattr(source_mail, "Body", "") or "")
+        return (
+            '<html><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;">'
+            f"{cls._body_as_html(body)}"
+            "<br><br>"
+            f"{original_body}"
+            "</body></html>"
+        )
+
+    @staticmethod
+    def _extract_html_body(html_text: str) -> str:
+        match = re.search(r"<body\b[^>]*>(.*?)</body>", html_text, flags=re.IGNORECASE | re.DOTALL)
+        return match.group(1) if match else html_text
 
     def _extract_time(self, subject: str) -> str:
         match = re.search(self.config.time_pattern, subject)
