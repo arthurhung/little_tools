@@ -115,12 +115,11 @@ class DailyDraftService:
         extracted_time = self._extract_time(second.Subject)
         body_template = body_override if body_override is not None else self.config.draft_rule.get("bodyTemplate", "{time}")
         body = body_template.replace("{time}", extracted_time)
-        draft_subject = self._rewrite_subject(first.Subject)
         preview = DraftPreview(
             first_subject=first.Subject,
             second_subject=second.Subject,
             extracted_time=extracted_time,
-            draft_subject=draft_subject,
+            draft_subject=self._rewrite_subject(first.Subject),
             body=body,
         )
         return first, preview
