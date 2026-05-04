@@ -150,10 +150,9 @@ class DailyDraftService:
         original_body = cls._extract_html_body(original_html).strip()
         if not original_body:
             original_body = cls._body_as_html(getattr(source_mail, "Body", "") or "")
+        original_body = cls._append_completion_row(original_body, body)
         return (
             '<html><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;">'
-            f"{cls._body_as_html(body)}"
-            "<br><br>"
             f"{original_body}"
             "</body></html>"
         )
@@ -162,6 +161,43 @@ class DailyDraftService:
     def _extract_html_body(html_text: str) -> str:
         match = re.search(r"<body\b[^>]*>(.*?)</body>", html_text, flags=re.IGNORECASE | re.DOTALL)
         return match.group(1) if match else html_text
+
+    @classmethod
+    def _append_completion_row(cls, html_text: str, completion_time: str) -> str:
+        table_match = re.search(r"<table\b[^>]*>.*?</table>", html_text, flags=re.IGNORECASE | re.DOTALL)
+        if not table_match:
+            return f"{cls._body_as_html(completion_time)}<br><br>{html_text}"
+
+        table_html = table_match.group(0)
+        rows = re.findall(r"<tr\b[^>]*>.*?</tr>", table_html, flags=re.IGNORECASE | re.DOTALL)
+        if not rows:
+            return f"{cls._body_as_html(completion_time)}<br><br>{html_text}"
+
+        last_row = rows[-1]
+        cell_matches = list(re.finditer(r"<t[dh]\b([^>]*)>.*?</t[dh]>", last_row, flags=re.IGNORECASE | re.DOTALL))
+        cell_count = len(cell_matches)
+        if cell_count < 3:
+            return f"{cls._body_as_html(completion_time)}<br><br>{html_text}"
+
+        next_index = cls._next_row_index(last_row)
+        values = [f"{next_index}.", "網銀資料", "完成"]
+        if cell_count >= 4:
+            values.append(f"完成時間: {completion_time}")
+        values.extend([""] * max(0, cell_count - len(values)))
+
+        new_cells = []
+        for index, value in enumerate(values[:cell_count]):
+            attrs = cell_matches[index].group(1) if index < len(cell_matches) else cell_matches[-1].group(1)
+            new_cells.append(f"<td{attrs}>{html.escape(value)}</td>")
+        new_row = "<tr>" + "".join(new_cells) + "</tr>"
+        updated_table = table_html[:-8] + new_row + table_html[-8:]
+        return html_text[: table_match.start()] + updated_table + html_text[table_match.end() :]
+
+    @staticmethod
+    def _next_row_index(row_html: str) -> int:
+        text = re.sub(r"<[^>]+>", " ", row_html)
+        match = re.search(r"\b(\d+)\s*\.?", html.unescape(text))
+        return int(match.group(1)) + 1 if match else 1
 
     def _extract_time(self, subject: str) -> str:
         match = re.search(self.config.time_pattern, subject)
