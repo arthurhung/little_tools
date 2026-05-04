@@ -125,7 +125,7 @@ class DailyDraftService:
         )
         return first, preview
 
-    def create_reply_all_draft(self, source_mail, preview: DraftPreview, display: bool = True):
+    def create_reply_all_draft(self, source_mail, preview: DraftPreview, display: bool = False):
         draft = source_mail.ReplyAll()
         draft.Subject = preview.draft_subject
         html_body = getattr(draft, "HTMLBody", "") or ""
@@ -164,7 +164,8 @@ class Cli:
         parser.add_argument("--mailbox", default=None, help="指定信箱 SMTP；不填則使用目前 Outlook 預設收件匣")
         parser.add_argument("--body", default=None, help="覆蓋設定檔內文，可用 {time}")
         parser.add_argument("--dry-run", action="store_true", help="只預覽，不建立草稿")
-        parser.add_argument("--no-display", action="store_true", help="建立草稿但不開啟草稿視窗")
+        parser.add_argument("--display", action="store_true", help="建立草稿後開啟 Classic Outlook 獨立草稿視窗")
+        parser.add_argument("--no-display", action="store_false", dest="display", help=argparse.SUPPRESS)
         return parser
 
     def run(self, argv: list[str] | None = None) -> int:
@@ -180,7 +181,7 @@ class Cli:
             if args.dry_run:
                 print("Dry run，不建立草稿。")
                 return 0
-            service.create_reply_all_draft(source_mail, preview, display=not args.no_display)
+            service.create_reply_all_draft(source_mail, preview, display=args.display)
             print("已建立全部回覆草稿，尚未寄出。")
             return 0
         except Exception as exc:
