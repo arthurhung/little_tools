@@ -131,7 +131,9 @@ class DailyDraftService:
         html_body = getattr(draft, "HTMLBody", "") or ""
         if html_body:
             draft.BodyFormat = OL_FORMAT_HTML
-            draft.HTMLBody = f"{self._body_as_html(preview.body)}<br><br>{html_body}"
+            source_html = getattr(source_mail, "HTMLBody", "") or ""
+            history_html = self._ensure_source_body_in_history(html_body, source_html)
+            draft.HTMLBody = self._prepend_html(history_html, f"{self._body_as_html(preview.body)}<br><br>")
         else:
             draft.Body = f"{preview.body}\r\n\r\n{draft.Body}"
         draft.Save()
@@ -142,6 +144,42 @@ class DailyDraftService:
     @staticmethod
     def _body_as_html(body: str) -> str:
         return "<br>".join(html.escape(line) for line in body.splitlines())
+
+    @classmethod
+    def _ensure_source_body_in_history(cls, reply_html: str, source_html: str) -> str:
+        source_body = cls._extract_html_body(source_html).strip()
+        if not source_body:
+            return reply_html
+        source_text = cls._html_text(source_body)
+        reply_text = cls._html_text(reply_html)
+        if source_text and source_text in reply_text:
+            return reply_html
+        return cls._append_html(reply_html, f"<br><br>{source_body}")
+
+    @staticmethod
+    def _extract_html_body(html_text: str) -> str:
+        match = re.search(r"<body\b[^>]*>(.*?)</body>", html_text, flags=re.IGNORECASE | re.DOTALL)
+        return match.group(1) if match else html_text
+
+    @staticmethod
+    def _html_text(html_text: str) -> str:
+        text = re.sub(r"<[^>]+>", "", html_text)
+        text = html.unescape(text)
+        return re.sub(r"\s+", " ", text).strip()
+
+    @staticmethod
+    def _prepend_html(html_text: str, prefix: str) -> str:
+        match = re.search(r"<body\b[^>]*>", html_text, flags=re.IGNORECASE)
+        if match:
+            return html_text[: match.end()] + prefix + html_text[match.end() :]
+        return prefix + html_text
+
+    @staticmethod
+    def _append_html(html_text: str, suffix: str) -> str:
+        match = re.search(r"</body>", html_text, flags=re.IGNORECASE)
+        if match:
+            return html_text[: match.start()] + suffix + html_text[match.start() :]
+        return html_text + suffix
 
     def _extract_time(self, subject: str) -> str:
         match = re.search(self.config.time_pattern, subject)
