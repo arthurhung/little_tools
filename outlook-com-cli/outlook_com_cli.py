@@ -1,6 +1,7 @@
 import argparse
 from dataclasses import dataclass
 from datetime import datetime, time
+import html
 import json
 from pathlib import Path
 import re
@@ -16,6 +17,7 @@ def app_dir() -> Path:
 APP_DIR = app_dir()
 DEFAULT_CONFIG_PATH = APP_DIR / "daily_draft_config.json"
 OL_FOLDER_INBOX = 6
+OL_FORMAT_HTML = 2
 
 
 class OutlookComUnavailable(RuntimeError):
@@ -126,11 +128,20 @@ class DailyDraftService:
     def create_reply_all_draft(self, source_mail, preview: DraftPreview, display: bool = True):
         draft = source_mail.ReplyAll()
         draft.Subject = preview.draft_subject
-        draft.Body = f"{preview.body}\r\n\r\n{draft.Body}"
+        html_body = getattr(draft, "HTMLBody", "") or ""
+        if html_body:
+            draft.BodyFormat = OL_FORMAT_HTML
+            draft.HTMLBody = f"{self._body_as_html(preview.body)}<br><br>{html_body}"
+        else:
+            draft.Body = f"{preview.body}\r\n\r\n{draft.Body}"
         draft.Save()
         if display:
             draft.Display()
         return draft
+
+    @staticmethod
+    def _body_as_html(body: str) -> str:
+        return "<br>".join(html.escape(line) for line in body.splitlines())
 
     def _extract_time(self, subject: str) -> str:
         match = re.search(self.config.time_pattern, subject)
