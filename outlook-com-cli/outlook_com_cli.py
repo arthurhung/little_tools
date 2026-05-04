@@ -134,9 +134,10 @@ class DailyDraftService:
         else:
             original_body = getattr(source_mail, "Body", "") or ""
             draft.Body = f"{preview.body}\r\n\r\n{original_body}"
-        draft.Save()
         if display:
             draft.Display()
+        else:
+            draft.Save()
         return draft
 
     @staticmethod
@@ -201,7 +202,10 @@ class Cli:
                 print("Dry run，不建立草稿。")
                 return 0
             service.create_reply_all_draft(source_mail, preview, display=args.display)
-            print("已建立全部回覆草稿，尚未寄出。")
+            if args.display:
+                print("已開啟全部回覆草稿視窗，尚未寄出。")
+            else:
+                print("已建立全部回覆草稿，尚未寄出。")
             return 0
         except Exception as exc:
             print(f"錯誤：{exc}", file=sys.stderr)
