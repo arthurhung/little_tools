@@ -47,12 +47,12 @@ python outlook_com_cli.py
 4. 對第一封建立全部回覆草稿。
 5. 修改草稿主旨。
 6. 把時間放入草稿內文最前面。
-7. 儲存全部回覆草稿，但不寄出、不開啟獨立草稿視窗。
+7. 儲存並開啟全部回覆草稿視窗，但不寄出。
 
-如果想開啟 Classic Outlook 的獨立草稿視窗，可加上：
+如果只想建立草稿、不開啟 Classic Outlook 的獨立草稿視窗，可加上：
 
 ```powershell
-python outlook_com_cli.py --display
+python outlook_com_cli.py --no-display
 ```
 
 ## 指定信箱
